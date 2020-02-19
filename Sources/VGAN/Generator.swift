@@ -113,41 +113,41 @@ struct Generator: Layer {
         let x4 = x4Block(x)
         var images = x4.images
         if imageSize == .x4 {
-            return images
+            return tanh(images)
         }
         
         let x8 = x8Block(x4.features)
         images = x8.images + resize2x(images)
         if imageSize == .x8 {
-            return images / 2 // average
+            return tanh(images)
         }
         
         let x16 = x16Block(x8.features)
         images = x16.images + resize2x(images)
         if imageSize == .x16 {
-            return images / 3
+            return tanh(images)
         }
         
         let x32 = x32Block(x16.features)
         images = x32.images + resize2x(images)
         if imageSize == .x32 {
-            return images / 4
+            return tanh(images)
         }
         
         let x64 = x64Block(x32.features)
         images = x64.images + resize2x(images)
         if imageSize == .x64 {
-            return images / 5
+            return tanh(images)
         }
         
         let x128 = x128Block(x64.features)
         images = x128.images + resize2x(images)
         if imageSize == .x128 {
-            return images / 6
+            return tanh(images)
         }
         
         let x256 = x256Block(x128.features)
         images = x256.images + resize2x(images)
-        return images / 7
+        return tanh(images)
     }
 }
