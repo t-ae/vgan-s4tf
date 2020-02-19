@@ -1,0 +1,34 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "GANUtils",
+        "repositoryURL": "https://github.com/t-ae/gan-utils-s4tf.git",
+        "state": {
+          "branch": null,
+          "revision": "1d6d2afe32c141145fb4b425af7597cb34c9ef58",
+          "version": "0.2.4"
+        }
+      },
+      {
+        "package": "ImageLoader",
+        "repositoryURL": "https://github.com/t-ae/image-loader.git",
+        "state": {
+          "branch": null,
+          "revision": "3c76ec2ef9d2bf1eef2e8d85dd3d31a586f51b8e",
+          "version": "0.1.8"
+        }
+      },
+      {
+        "package": "TensorBoardX",
+        "repositoryURL": "https://github.com/t-ae/tensorboardx-s4tf.git",
+        "state": {
+          "branch": null,
+          "revision": "9c4200c4b3c031fba2d4aa1d4d42c9fa52d2cc55",
+          "version": "0.1.0"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
