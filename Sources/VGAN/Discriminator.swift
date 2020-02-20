@@ -5,7 +5,6 @@ struct DBlock: Layer {
     var conv1: Conv2D<Float>
     var conv2: Conv2D<Float>
     var shortcut: Conv2D<Float>
-    var avgPool: AvgPool2D<Float>
     
     init(
         inputChannels: Int,
@@ -13,30 +12,23 @@ struct DBlock: Layer {
     ) {
         conv1 = Conv2D(filterShape: (3, 3, inputChannels, outputChannels),
                        padding: .same,
-                       activation: lrelu,
                        filterInitializer: heNormal())
         conv2 = Conv2D(filterShape: (3, 3, outputChannels, outputChannels),
-                       strides: (2, 2),
                        padding: .same,
-                       activation: lrelu,
                        filterInitializer: heNormal())
         shortcut = Conv2D(filterShape: (1, 1, inputChannels, outputChannels),
                           filterInitializer: heNormal())
-        
-        avgPool = AvgPool2D(poolSize: (2, 2), strides: (2, 2))
     }
     
     @differentiable
     func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
-        x = conv1(x)
-        x = conv2(x)
+        x = conv1(leakyRelu(x))
+        x = conv2(leakyRelu(x))
         
-        var y = input
-        y = avgPool(y)
-        y = shortcut(y)
+        let sc = shortcut(input)
         
-        return x + y
+        return 0.1*x + sc
     }
 }
 
@@ -61,6 +53,8 @@ struct Discriminator: Layer {
     
     var fromRGB: Conv2D<Float>
     
+    var avgPool: AvgPool2D<Float> = AvgPool2D(poolSize: (2, 2), strides: (2, 2))
+    
     @noDerivative
     private let imageSize: ImageSize
     
@@ -81,7 +75,6 @@ struct Discriminator: Layer {
         }
         
         fromRGB = Conv2D(filterShape: (1, 1, 3, config.baseChannels),
-                         activation: lrelu,
                          filterInitializer: heNormal())
         
         let io256 = ioChannels(for: .x256)
@@ -124,23 +117,25 @@ struct Discriminator: Layer {
         x = fromRGB(x)
         
         if imageSize >= .x256 {
-            x = x256Block(x)
+            x = avgPool(x256Block(x))
         }
         if imageSize >= .x128 {
-            x = x128Block(x)
+            x = avgPool(x128Block(x))
         }
         if imageSize >= .x64 {
-            x = x64Block(x)
+            x = avgPool(x64Block(x))
         }
         if imageSize >= .x32 {
-            x = x32Block(x)
+            x = avgPool(x32Block(x))
         }
         if imageSize >= .x16 {
-            x = x16Block(x)
+            x = avgPool(x16Block(x))
         }
         if imageSize >= .x8 {
-            x = x8Block(x)
+            x = avgPool(x8Block(x))
         }
+        
+        x = leakyRelu(x)
         
         // [batchSize, encodedSize]
         let mean = meanConv(x).squeezingShape(at: 1, 2)
@@ -153,7 +148,7 @@ struct Discriminator: Layer {
             x = mean + 0*logVar
         }
         
-        x = lastDense(x)
+        x = lastDense(leakyRelu(x))
         
         return Output(logit: x, mean: mean, logVar: logVar)
     }

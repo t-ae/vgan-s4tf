@@ -3,41 +3,40 @@ import TensorFlow
 import GANUtils
 
 struct GBlock: Layer {
-    var conv1: TransposedConv2D<Float>
+    var conv1: Conv2D<Float>
     var conv2: Conv2D<Float>
-    var toRGB: Conv2D<Float>
+    var shortcut: Conv2D<Float>
+    
+    var bn1: BatchNorm<Float>
+    var bn2: BatchNorm<Float>
     
     init(
         inputChannels: Int,
         outputChannels: Int
     ) {
-        conv1 = TransposedConv2D(filterShape: (4, 4, outputChannels, inputChannels),
-                                 strides: (2, 2),
+        conv1 = Conv2D(filterShape: (3, 3, inputChannels, outputChannels),
                                  padding: .same,
-                                 activation: lrelu,
                                  filterInitializer: heNormal())
         conv2 = Conv2D(filterShape: (3, 3, outputChannels, outputChannels),
                        padding: .same,
-                       activation: lrelu,
                        filterInitializer: heNormal())
-        toRGB = Conv2D(filterShape: (1, 1, outputChannels, 3),
-                       filterInitializer: heNormal())
-    }
-    
-    struct Output: Differentiable {
-        var features: Tensor<Float>
-        var images: Tensor<Float>
+        shortcut = Conv2D(filterShape: (1, 1, inputChannels, outputChannels),
+                          filterInitializer: heNormal())
+        
+        bn1 = BatchNorm(featureCount: inputChannels)
+        bn2 = BatchNorm(featureCount: outputChannels)
     }
     
     @differentiable
-    func callAsFunction(_ input: Tensor<Float>) -> Output {
+    func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
         
-        x = conv1(x)
-        x = conv2(x)
-        let images = toRGB(x)
+        x = conv1(leakyRelu(bn1(x)))
+        x = conv2(leakyRelu(bn2(x)))
         
-        return Output(features: x, images: images)
+        let sc = shortcut(input)
+        
+        return 0.1*x + sc
     }
 }
 
@@ -57,6 +56,8 @@ struct Generator: Layer {
     var x64Block: GBlock
     var x128Block: GBlock
     var x256Block: GBlock
+    
+    var toRGB: Conv2D<Float>
     
     var resize2x: Resize
     
@@ -80,7 +81,7 @@ struct Generator: Layer {
         }
         
         let io4 = ioChannels(for: .x4)
-        head = Dense(inputSize: config.latentSize, outputSize: io4.i * 2 * 2, activation: lrelu)
+        head = Dense(inputSize: config.latentSize, outputSize: io4.i * 4 * 4)
         x4Block = GBlock(inputChannels: io4.i, outputChannels: io4.o)
         
         let io8 = ioChannels(for: .x8)
@@ -101,6 +102,10 @@ struct Generator: Layer {
         let io256 = ioChannels(for: .x256)
         x256Block = GBlock(inputChannels: io256.i, outputChannels: io256.o)
         
+        toRGB = Conv2D(filterShape: (1, 1, baseChannels, 3),
+                       activation: tanh,
+                       filterInitializer: heNormal())
+        
         resize2x = Resize(config.resizeMethod, outputSize: .factor(x: 2, y: 2), alignCorners: true)
     }
     
@@ -108,46 +113,39 @@ struct Generator: Layer {
     func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
         
-        x = head(x).reshaped(to: [input.shape[0], 2, 2, -1]) // 2x2
+        x = head(x).reshaped(to: [input.shape[0], 4, 4, -1]) // 2x2
         
-        let x4 = x4Block(x)
-        var images = x4.images
+        x = x4Block(x)
         if imageSize == .x4 {
-            return tanh(images)
+            return toRGB(leakyRelu(x))
         }
         
-        let x8 = x8Block(x4.features)
-        images = x8.images + resize2x(images)
+        x = x8Block(resize2x(x))
         if imageSize == .x8 {
-            return tanh(images)
+            return toRGB(leakyRelu(x))
         }
         
-        let x16 = x16Block(x8.features)
-        images = x16.images + resize2x(images)
+        x = x16Block(resize2x(x))
         if imageSize == .x16 {
-            return tanh(images)
+            return toRGB(leakyRelu(x))
         }
         
-        let x32 = x32Block(x16.features)
-        images = x32.images + resize2x(images)
+        x = x32Block(resize2x(x))
         if imageSize == .x32 {
-            return tanh(images)
+            return toRGB(leakyRelu(x))
         }
         
-        let x64 = x64Block(x32.features)
-        images = x64.images + resize2x(images)
+        x = x64Block(resize2x(x))
         if imageSize == .x64 {
-            return tanh(images)
+            return toRGB(leakyRelu(x))
         }
         
-        let x128 = x128Block(x64.features)
-        images = x128.images + resize2x(images)
+        x = x128Block(resize2x(x))
         if imageSize == .x128 {
-            return tanh(images)
+            return toRGB(leakyRelu(x))
         }
         
-        let x256 = x256Block(x128.features)
-        images = x256.images + resize2x(images)
-        return tanh(images)
+        x = x256Block(resize2x(x))
+        return toRGB(leakyRelu(x))
     }
 }
