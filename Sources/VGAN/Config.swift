@@ -5,6 +5,7 @@ struct Config: Codable {
     var loss: GANLossType
     var batchSize: Int
     var learningRates: GDPair<Float>
+    var alpha: Float
     var Ic: Float
     
     var imageSize: ImageSize

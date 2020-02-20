@@ -5,15 +5,17 @@ import ImageLoader
 import TensorBoardX
 
 Context.local.randomSeed = (42, 42)
+let rng = XorshiftRandomNumberGenerator()
 
 let imageSize: ImageSize = .x64
 let latentSize = 128
-let batchSize = 32 // Multiple of 4 for MinibatchStdConcat
+let batchSize = 64 // Multiple of 4 for MinibatchStdConcat
 
 let config = Config(
     loss: .nonSaturating,
     batchSize: batchSize,
-    learningRates: GDPair(G: 1e-3, D: 1e-3),
+    learningRates: GDPair(G: 1e-4, D: 1e-4),
+    alpha: 1e-8,
     Ic: 0.2,
     imageSize: imageSize,
     G: Generator.Config(
@@ -51,7 +53,8 @@ let loader = ImageLoader(
         Transforms.paddingToSquare(with: 1),
         Transforms.resize(.area, width: imageSize.rawValue, height: imageSize.rawValue),
         Transforms.randomFlipHorizontally()
-    ]
+    ],
+    rng: rng
 )
 
 // MARK: - Plot
@@ -114,7 +117,7 @@ func trainSingleStep(reals: Tensor<Float>, step: Int) {
         let loss = ganLoss + beta * bottleneckLoss
         
         // Update beta
-        beta = withoutDerivative(at: max(0, beta + 1e-8 * bottleneckLoss.scalarized()))
+        beta = withoutDerivative(at: max(0, beta + config.alpha * bottleneckLoss.scalarized()))
         
         writer.addScalar(tag: "loss/D", scalar: loss.scalarized(), globalStep: step)
         writer.addScalar(tag: "loss/Dgan", scalar: ganLoss.scalarized(), globalStep: step)
