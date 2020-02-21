@@ -8,7 +8,7 @@ Context.local.randomSeed = (42, 42)
 let rng = XorshiftRandomNumberGenerator()
 
 let imageSize: ImageSize = .x64
-let latentSize = 128
+let latentSize = 256
 let batchSize = 64 // Multiple of 4 for MinibatchStdConcat
 
 let config = Config(
@@ -16,24 +16,23 @@ let config = Config(
     batchSize: batchSize,
     learningRates: GDPair(G: 1e-4, D: 1e-4),
     alpha: 1e-5,
-    Ic: 0.2,
+    Ic: 0.5,
+    reparameterizeInGTraining: true,
     imageSize: imageSize,
     G: Generator.Config(
         latentSize: latentSize,
         resizeMethod: .bilinear
     ),
     D: Discriminator.Config(
-        encodedSize: 128
+        encodedSize: 256
     )
 )
 
 var generator = Generator(config: config.G, imageSize: imageSize)
 var discriminator = Discriminator(config: config.D, imageSize: imageSize)
 
-let optG = Adam(for: generator, learningRate: config.learningRates.D,
-                beta1: 0, beta2: 0.99)
-let optD = Adam(for: discriminator, learningRate: config.learningRates.D,
-                beta1: 0, beta2: 0.99)
+let optG = RMSProp(for: generator, learningRate: config.learningRates.D, rho: 0.99)
+let optD = RMSProp(for: discriminator, learningRate: config.learningRates.D, rho: 0.99)
 let criterion = GANLoss(config.loss)
 
 
@@ -94,7 +93,7 @@ func train() {
     infer(step: step)
 }
 
-var beta: Float = 0
+var beta: Float = 0.1
 func trainSingleStep(reals: Tensor<Float>, step: Int) {
     let noise = sampleNoise(size: batchSize, latentSize: latentSize)
     
@@ -109,10 +108,14 @@ func trainSingleStep(reals: Tensor<Float>, step: Int) {
         
         let ganLoss = criterion.lossD(real: realOutout.logit, fake: fakeOutput.logit)
         let mean = Tensor(concatenating: [realOutout.mean, fakeOutput.mean], alongAxis: 0)
+            .reshaped(to: [-1, config.D.encodedSize])
         let logVar = Tensor(concatenating: [realOutout.logVar, fakeOutput.logVar], alongAxis: 0)
+            .reshaped(to: [-1, config.D.encodedSize])
         var kld = (mean.squared() + exp(logVar) - logVar - 1)
         kld = kld.sum(squeezingAxes: 1) / 2
         let bottleneckLoss = kld.mean() - config.Ic
+        
+        print(bottleneckLoss, beta, mean.moments(), logVar.moments())
         
         let loss = ganLoss + beta * bottleneckLoss
         
@@ -135,7 +138,7 @@ func trainSingleStep(reals: Tensor<Float>, step: Int) {
     optD.update(&discriminator, along: 𝛁discriminator)
     
     // Update Generator
-    discriminator.reparametrize = false
+    discriminator.reparametrize = config.reparameterizeInGTraining
     let 𝛁generator = gradient(at: generator) { generator ->Tensor<Float> in
         let fakes = generator(noise)
         let output = discriminator(fakes)
@@ -157,20 +160,17 @@ let testGridNoises = (0..<8).map { _ in
 
 func infer(step: Int) {
     print("infer...")
-    Context.local.learningPhase = .inference
     
     for (i, noise) in testNoises.enumerated() {
-        let reals = generator(noise)
+        let reals = generator.inferring(from: noise)
         writer.plotImages(tag: "test_random/\(i)", images: reals, colSize: 8, globalStep: step)
     }
     for (i, noise) in testGridNoises.enumerated() {
-        let reals = generator(noise)
+        let reals = generator.inferring(from: noise)
         writer.plotImages(tag: "test_intpl/\(i)", images: reals, colSize: 8, globalStep: step)
     }
     
     writer.flush()
-    
-    Context.local.learningPhase = .training
 }
 
 train()

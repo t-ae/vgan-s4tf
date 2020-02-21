@@ -1,5 +1,6 @@
 import Foundation
 import TensorFlow
+import GANUtils
 
 struct DBlock: Layer {
     var conv1: Conv2D<Float>
@@ -45,11 +46,14 @@ struct Discriminator: Layer {
     var x32Block: DBlock
     var x16Block: DBlock
     var x8Block: DBlock
+    var x4Block: DBlock
+    
+    var norm: InstanceNorm<Float>
     
     var meanConv: Conv2D<Float>
     var logVarConv: Conv2D<Float>
     
-    var lastDense: Dense<Float>
+    var tail: Conv2D<Float>
     
     var fromRGB: Conv2D<Float>
     
@@ -95,13 +99,18 @@ struct Discriminator: Layer {
         let io8 = ioChannels(for: .x8)
         x8Block = DBlock(inputChannels: io8.i, outputChannels: io8.o)
         
-        meanConv = Conv2D(filterShape: (4, 4, io8.o, config.encodedSize),
+        let io4 = ioChannels(for: .x4)
+        x4Block = DBlock(inputChannels: io4.i, outputChannels: io4.o)
+        
+        meanConv = Conv2D(filterShape: (1, 1, io4.o, config.encodedSize),
                           filterInitializer: heNormal())
-        logVarConv = Conv2D(filterShape: (4, 4, io8.o, config.encodedSize),
+        logVarConv = Conv2D(filterShape: (1, 1, io4.o, config.encodedSize),
                             filterInitializer: heNormal())
         
-        lastDense = Dense(inputSize: config.encodedSize, outputSize: 1,
-                          weightInitializer: heNormal())
+        tail = Conv2D(filterShape: (4, 4, config.encodedSize, 1),
+                      filterInitializer: heNormal())
+        
+        norm = InstanceNorm(featureCount: io4.o)
     }
     
     struct Output: Differentiable {
@@ -135,11 +144,14 @@ struct Discriminator: Layer {
             x = avgPool(x8Block(x))
         }
         
-        x = leakyRelu(x)
+        // Added normalization.
+        // The variance of the output of resnet can be large.
+        // It leads extremely large KL divergence.
+        x = norm(leakyRelu(x4Block(x)))
         
         // [batchSize, encodedSize]
-        let mean = meanConv(x).squeezingShape(at: 1, 2)
-        let logVar = logVarConv(x).squeezingShape(at: 1, 2)
+        let mean = meanConv(x)
+        let logVar = logVarConv(x)
         
         if reparametrize {
             x = Tensor(randomNormal: mean.shape) * exp(0.5 * logVar) + mean
@@ -148,7 +160,9 @@ struct Discriminator: Layer {
             x = mean + 0*logVar
         }
         
-        x = lastDense(leakyRelu(x))
+        // Original impl has leakyRelu here.
+//        x = tail(leakyRelu(x)).squeezingShape(at: 1, 2)
+        x = tail(x).squeezingShape(at: 1, 2)
         
         return Output(logit: x, mean: mean, logVar: logVar)
     }

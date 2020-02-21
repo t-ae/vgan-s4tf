@@ -7,6 +7,7 @@ struct Config: Codable {
     var learningRates: GDPair<Float>
     var alpha: Float
     var Ic: Float
+    var reparameterizeInGTraining: Bool
     
     var imageSize: ImageSize
     var G: Generator.Config
