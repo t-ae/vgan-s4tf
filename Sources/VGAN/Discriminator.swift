@@ -7,6 +7,9 @@ struct DBlock: Layer {
     var conv2: Conv2D<Float>
     var shortcut: Conv2D<Float>
     
+    @noDerivative
+    let learnableSC: Bool
+    
     init(
         inputChannels: Int,
         outputChannels: Int
@@ -17,7 +20,9 @@ struct DBlock: Layer {
         conv2 = Conv2D(filterShape: (3, 3, outputChannels, outputChannels),
                        padding: .same,
                        filterInitializer: heNormal())
-        shortcut = Conv2D(filterShape: (1, 1, inputChannels, outputChannels),
+        
+        learnableSC = inputChannels != outputChannels
+        shortcut = Conv2D(filterShape: (1, 1, learnableSC ? inputChannels : 0, outputChannels),
                           filterInitializer: heNormal())
     }
     
@@ -27,7 +32,10 @@ struct DBlock: Layer {
         x = conv1(leakyRelu(x))
         x = conv2(leakyRelu(x))
         
-        let sc = shortcut(input)
+        var sc = input
+        if learnableSC {
+            sc = shortcut(input)
+        }
         
         return 0.1*x + sc
     }
