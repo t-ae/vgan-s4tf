@@ -7,9 +7,9 @@ import TensorBoardX
 Context.local.randomSeed = (42, 42)
 let rng = XorshiftRandomNumberGenerator()
 
-let imageSize: ImageSize = .x64
+let imageSize: ImageSize = .x256
 let latentSize = 256
-let batchSize = 64 // Multiple of 4 for MinibatchStdConcat
+let batchSize = 4
 
 let config = Config(
     loss: .nonSaturating,
@@ -114,8 +114,6 @@ func trainSingleStep(reals: Tensor<Float>, step: Int) {
         var kld = (mean.squared() + exp(logVar) - logVar - 1)
         kld = kld.sum(squeezingAxes: 1) / 2
         let bottleneckLoss = kld.mean() - config.Ic
-        
-        print(bottleneckLoss, beta, mean.moments(), logVar.moments())
         
         let loss = ganLoss + beta * bottleneckLoss
         

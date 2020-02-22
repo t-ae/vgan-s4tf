@@ -3,7 +3,7 @@ import TensorFlow
 import GANUtils
 
 struct GBlock: Layer {
-    var conv1: Conv2D<Float>
+    var conv1: TransposedConv2D<Float>
     var conv2: Conv2D<Float>
     var shortcut: Conv2D<Float>
     
@@ -13,11 +13,15 @@ struct GBlock: Layer {
     var bn1: BatchNorm<Float>
     var bn2: BatchNorm<Float>
     
+    var resize2x: Resize
+    
     init(
         inputChannels: Int,
-        outputChannels: Int
+        outputChannels: Int,
+        resize2x: Resize
     ) {
-        conv1 = Conv2D(filterShape: (3, 3, inputChannels, outputChannels),
+        conv1 = TransposedConv2D(filterShape: (4, 4, outputChannels, inputChannels),
+                                 strides: (2, 2),
                                  padding: .same,
                                  filterInitializer: heNormal())
         conv2 = Conv2D(filterShape: (3, 3, outputChannels, outputChannels),
@@ -30,20 +34,19 @@ struct GBlock: Layer {
         
         bn1 = BatchNorm(featureCount: inputChannels)
         bn2 = BatchNorm(featureCount: outputChannels)
+        self.resize2x = resize2x
     }
     
     @differentiable
     func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
-        
         x = conv1(leakyRelu(bn1(x)))
         x = conv2(leakyRelu(bn2(x)))
         
-        var sc = input
+        var sc = resize2x(input)
         if learnableSC {
-            sc = shortcut(input)
+            sc = shortcut(sc)
         }
-        
         return 0.1*x + sc
     }
 }
@@ -67,8 +70,6 @@ struct Generator: Layer {
     
     var toRGB: Conv2D<Float>
     
-    var resize2x: Resize
-    
     @noDerivative
     let imageSize: ImageSize
     
@@ -77,6 +78,7 @@ struct Generator: Layer {
         
         let baseChannels = config.baseChannels
         let maxChannels = config.maxChannels
+        let resize = Resize(config.resizeMethod, outputSize: .factor(x: 2, y: 2), alignCorners: true)
         
         func ioChannels(for size: ImageSize) -> (i: Int, o: Int) {
             guard size <= imageSize else {
@@ -89,71 +91,69 @@ struct Generator: Layer {
         }
         
         let io4 = ioChannels(for: .x4)
-        head = Dense(inputSize: config.latentSize, outputSize: io4.i * 4 * 4)
-        x4Block = GBlock(inputChannels: io4.i, outputChannels: io4.o)
+        head = Dense(inputSize: config.latentSize, outputSize: io4.i * 2 * 2)
+        x4Block = GBlock(inputChannels: io4.i, outputChannels: io4.o, resize2x: resize)
         
         let io8 = ioChannels(for: .x8)
-        x8Block = GBlock(inputChannels: io8.i, outputChannels: io8.o)
+        x8Block = GBlock(inputChannels: io8.i, outputChannels: io8.o, resize2x: resize)
         
         let io16 = ioChannels(for: .x16)
-        x16Block = GBlock(inputChannels: io16.i, outputChannels: io16.o)
+        x16Block = GBlock(inputChannels: io16.i, outputChannels: io16.o, resize2x: resize)
         
         let io32 = ioChannels(for: .x32)
-        x32Block = GBlock(inputChannels: io32.i, outputChannels: io32.o)
+        x32Block = GBlock(inputChannels: io32.i, outputChannels: io32.o, resize2x: resize)
         
         let io64 = ioChannels(for: .x64)
-        x64Block = GBlock(inputChannels: io64.i, outputChannels: io64.o)
+        x64Block = GBlock(inputChannels: io64.i, outputChannels: io64.o, resize2x: resize)
         
         let io128 = ioChannels(for: .x128)
-        x128Block = GBlock(inputChannels: io128.i, outputChannels: io128.o)
+        x128Block = GBlock(inputChannels: io128.i, outputChannels: io128.o, resize2x: resize)
         
         let io256 = ioChannels(for: .x256)
-        x256Block = GBlock(inputChannels: io256.i, outputChannels: io256.o)
+        x256Block = GBlock(inputChannels: io256.i, outputChannels: io256.o, resize2x: resize)
         
         toRGB = Conv2D(filterShape: (1, 1, baseChannels, 3),
                        activation: tanh,
                        filterInitializer: heNormal())
-        
-        resize2x = Resize(config.resizeMethod, outputSize: .factor(x: 2, y: 2), alignCorners: true)
     }
     
     @differentiable
     func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
         
-        x = head(x).reshaped(to: [input.shape[0], 4, 4, -1]) // 2x2
+        x = head(x).reshaped(to: [input.shape[0], 2, 2, -1]) // 2x2
         
         x = x4Block(x)
         if imageSize == .x4 {
             return toRGB(leakyRelu(x))
         }
         
-        x = x8Block(resize2x(x))
+        x = x8Block(x)
         if imageSize == .x8 {
             return toRGB(leakyRelu(x))
         }
         
-        x = x16Block(resize2x(x))
+        x = x16Block(x)
         if imageSize == .x16 {
             return toRGB(leakyRelu(x))
         }
         
-        x = x32Block(resize2x(x))
+        x = x32Block(x)
         if imageSize == .x32 {
             return toRGB(leakyRelu(x))
         }
         
-        x = x64Block(resize2x(x))
+        x = x64Block(x)
         if imageSize == .x64 {
             return toRGB(leakyRelu(x))
         }
         
-        x = x128Block(resize2x(x))
+        x = x128Block(x)
         if imageSize == .x128 {
             return toRGB(leakyRelu(x))
         }
         
-        x = x256Block(resize2x(x))
+        x = x256Block(x)
         return toRGB(leakyRelu(x))
     }
 }
