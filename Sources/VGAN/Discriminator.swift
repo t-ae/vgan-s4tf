@@ -10,6 +10,8 @@ struct DBlock: Layer {
     @noDerivative
     let learnableSC: Bool
     
+    var avgPool = AvgPool2D<Float>(poolSize: (2, 2), strides: (2, 2))
+    
     init(
         inputChannels: Int,
         outputChannels: Int
@@ -17,7 +19,8 @@ struct DBlock: Layer {
         conv1 = Conv2D(filterShape: (3, 3, inputChannels, outputChannels),
                        padding: .same,
                        filterInitializer: heNormal())
-        conv2 = Conv2D(filterShape: (3, 3, outputChannels, outputChannels),
+        conv2 = Conv2D(filterShape: (4, 4, outputChannels, outputChannels),
+                       strides: (2, 2),
                        padding: .same,
                        filterInitializer: heNormal())
         
@@ -32,9 +35,9 @@ struct DBlock: Layer {
         x = conv1(leakyRelu(x))
         x = conv2(leakyRelu(x))
         
-        var sc = input
+        var sc = avgPool(input)
         if learnableSC {
-            sc = shortcut(input)
+            sc = shortcut(sc)
         }
         
         return 0.1*x + sc
@@ -54,7 +57,7 @@ struct Discriminator: Layer {
     var x32Block: DBlock
     var x16Block: DBlock
     var x8Block: DBlock
-    var x4Block: DBlock
+//    var x4Block: DBlock
     
     var norm: InstanceNorm<Float>
     
@@ -107,18 +110,18 @@ struct Discriminator: Layer {
         let io8 = ioChannels(for: .x8)
         x8Block = DBlock(inputChannels: io8.i, outputChannels: io8.o)
         
-        let io4 = ioChannels(for: .x4)
-        x4Block = DBlock(inputChannels: io4.i, outputChannels: io4.o)
+//        let io4 = ioChannels(for: .x4)
+//        x4Block = DBlock(inputChannels: io4.i, outputChannels: io4.o)
         
-        meanConv = Conv2D(filterShape: (1, 1, io4.o, config.encodedSize),
+        meanConv = Conv2D(filterShape: (1, 1, io8.o, config.encodedSize),
                           filterInitializer: heNormal())
-        logVarConv = Conv2D(filterShape: (1, 1, io4.o, config.encodedSize),
+        logVarConv = Conv2D(filterShape: (1, 1, io8.o, config.encodedSize),
                             filterInitializer: heNormal())
         
         tail = Conv2D(filterShape: (4, 4, config.encodedSize, 1),
                       filterInitializer: heNormal())
         
-        norm = InstanceNorm(featureCount: io4.o)
+        norm = InstanceNorm(featureCount: io8.o)
     }
     
     struct Output: Differentiable {
@@ -134,28 +137,28 @@ struct Discriminator: Layer {
         x = fromRGB(x)
         
         if imageSize >= .x256 {
-            x = avgPool(x256Block(x))
+            x = x256Block(x)
         }
         if imageSize >= .x128 {
-            x = avgPool(x128Block(x))
+            x = x128Block(x)
         }
         if imageSize >= .x64 {
-            x = avgPool(x64Block(x))
+            x = x64Block(x)
         }
         if imageSize >= .x32 {
-            x = avgPool(x32Block(x))
+            x = x32Block(x)
         }
         if imageSize >= .x16 {
-            x = avgPool(x16Block(x))
+            x = x16Block(x)
         }
         if imageSize >= .x8 {
-            x = avgPool(x8Block(x))
+            x = x8Block(x)
         }
         
         // Added normalization.
         // The variance of the output of resnet can be large.
         // It leads extremely large KL divergence.
-        x = norm(leakyRelu(x4Block(x)))
+        x = norm(leakyRelu(x))
         
         // [batchSize, encodedSize]
         let mean = meanConv(x)
