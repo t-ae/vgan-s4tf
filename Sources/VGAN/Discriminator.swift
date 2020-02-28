@@ -20,7 +20,6 @@ struct DBlock: Layer {
                        padding: .same,
                        filterInitializer: heNormal())
         conv2 = Conv2D(filterShape: (4, 4, outputChannels, outputChannels),
-                       strides: (2, 2),
                        padding: .same,
                        filterInitializer: heNormal())
         
@@ -34,6 +33,7 @@ struct DBlock: Layer {
         var x = input
         x = conv1(leakyRelu(x))
         x = conv2(leakyRelu(x))
+        x = avgPool(x)
         
         var sc = avgPool(input)
         if learnableSC {
