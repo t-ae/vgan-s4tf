@@ -1,6 +1,5 @@
 import Foundation
 import TensorFlow
-import Python
 import TensorBoardX
 
 extension SummaryWriter {
