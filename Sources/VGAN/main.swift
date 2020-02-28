@@ -8,23 +8,23 @@ Context.local.randomSeed = (42, 42)
 let rng = XorshiftRandomNumberGenerator()
 
 let imageSize: ImageSize = .x256
-let latentSize = 256
-let batchSize = 4
+let latentSize = 128
+let batchSize = 32
 
 let config = Config(
     loss: .nonSaturating,
     batchSize: batchSize,
     learningRates: GDPair(G: 1e-4, D: 1e-4),
     alpha: 1e-5,
-    Ic: 0.5,
-    reparameterizeInGTraining: true,
+    Ic: 0.1,
+    reparameterizeInGTraining: false,
     imageSize: imageSize,
     G: Generator.Config(
         latentSize: latentSize,
         resizeMethod: .bilinear
     ),
     D: Discriminator.Config(
-        encodedSize: 256
+        encodedSize: 128
     )
 )
 
