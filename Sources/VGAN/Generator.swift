@@ -2,10 +2,29 @@ import Foundation
 import TensorFlow
 import GANUtils
 
+struct Blur2D: ParameterlessLayer {
+    @noDerivative
+    let filter: Tensor<Float>
+    
+    init(channels: Int) {
+        let f = Tensor<Float>([[1, 2, 1], [2, 4, 2], [1, 2, 1]])
+            .reshaped(to: [3, 3, 1, 1]) / 16
+        filter = f.tiled(multiples: Tensor([1, 1, Int32(channels), 1]))
+    }
+    
+    @differentiable
+    func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
+        depthwiseConv2D(input, filter: filter, strides: (1, 1, 1, 1), padding: .same)
+    }
+}
+
 struct GBlock: Layer {
     var conv1: TransposedConv2D<Float>
     var conv2: TransposedConv2D<Float>
     var shortcut: Conv2D<Float>
+    
+    @noDerivative
+    let blur: Blur2D
     
     @noDerivative
     let learnableSC: Bool
@@ -21,8 +40,10 @@ struct GBlock: Layer {
         resize2x: Resize
     ) {
         conv1 = TransposedConv2D(filterShape: (4, 4, outputChannels, inputChannels),
+                                 strides: (2, 2),
                                  padding: .same,
                                  filterInitializer: heNormal())
+        blur = Blur2D(channels: outputChannels)
         conv2 = TransposedConv2D(filterShape: (3, 3, outputChannels, outputChannels),
                                  padding: .same,
                                  filterInitializer: heNormal())
@@ -39,8 +60,8 @@ struct GBlock: Layer {
     @differentiable
     func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
-        x = resize2x(x)
         x = conv1(leakyRelu(bn1(x)))
+        x = blur(x)
         x = conv2(leakyRelu(bn2(x)))
         
         var sc = resize2x(input)
