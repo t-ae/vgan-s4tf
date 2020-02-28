@@ -160,11 +160,11 @@ func infer(step: Int) {
     print("infer...")
     
     for (i, noise) in testNoises.enumerated() {
-        let reals = generator.inferring(from: noise)
+        let reals = generator.inferring(from: noise, batchSize: 16)
         writer.plotImages(tag: "test_random/\(i)", images: reals, colSize: 8, globalStep: step)
     }
     for (i, noise) in testGridNoises.enumerated() {
-        let reals = generator.inferring(from: noise)
+        let reals = generator.inferring(from: noise, batchSize: 16)
         writer.plotImages(tag: "test_intpl/\(i)", images: reals, colSize: 8, globalStep: step)
     }
     

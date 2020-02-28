@@ -157,3 +157,11 @@ struct Generator: Layer {
         return toRGB(leakyRelu(x))
     }
 }
+
+extension Generator {
+    func inferring(from input: Tensor<Float>, batchSize: Int) -> Tensor<Float> {
+        let x = input.reshaped(to: [-1, batchSize, input.shape[1]])
+        return Tensor(concatenating: (0..<x.shape[0]).map { inferring(from: x[$0]) },
+                      alongAxis: 0)
+    }
+}
