@@ -9,7 +9,7 @@ let rng = XorshiftRandomNumberGenerator()
 
 let imageSize: ImageSize = .x256
 let latentSize = 128
-let batchSize = 32
+let batchSize = 16
 
 let config = Config(
     loss: .nonSaturating,
@@ -160,11 +160,11 @@ func infer(step: Int) {
     print("infer...")
     
     for (i, noise) in testNoises.enumerated() {
-        let reals = generator.inferring(from: noise, batchSize: 16)
+        let reals = generator.inferring(from: noise, batchSize: batchSize)
         writer.plotImages(tag: "test_random/\(i)", images: reals, colSize: 8, globalStep: step)
     }
     for (i, noise) in testGridNoises.enumerated() {
-        let reals = generator.inferring(from: noise, batchSize: 16)
+        let reals = generator.inferring(from: noise, batchSize: batchSize)
         writer.plotImages(tag: "test_intpl/\(i)", images: reals, colSize: 8, globalStep: step)
     }
     
