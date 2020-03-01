@@ -29,7 +29,7 @@ struct GBlock: Layer {
                                  filterInitializer: heNormal())
         
         learnableSC = inputChannels != outputChannels
-        shortcut = Conv2D(filterShape: (1, 1, learnableSC ? inputChannels: 0, outputChannels),
+        shortcut = Conv2D(filterShape: (1, 1, inputChannels, learnableSC ? outputChannels : 0),
                           filterInitializer: heNormal())
         
         bn1 = BatchNorm(featureCount: inputChannels)

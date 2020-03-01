@@ -24,7 +24,8 @@ let config = Config(
         resizeMethod: .bilinear
     ),
     D: Discriminator.Config(
-        encodedSize: 256
+        encodedSize: 256,
+        enableSpectralNormalization: true
     )
 )
 

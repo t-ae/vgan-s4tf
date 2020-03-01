@@ -3,9 +3,9 @@ import TensorFlow
 import GANUtils
 
 struct DBlock: Layer {
-    var conv1: Conv2D<Float>
-    var conv2: Conv2D<Float>
-    var shortcut: Conv2D<Float>
+    var conv1: SNConv2D<Float>
+    var conv2: SNConv2D<Float>
+    var shortcut: SNConv2D<Float>
     
     @noDerivative
     let learnableSC: Bool
@@ -14,19 +14,23 @@ struct DBlock: Layer {
     
     init(
         inputChannels: Int,
-        outputChannels: Int
+        outputChannels: Int,
+        enableSpectralNormalization: Bool
     ) {
-        conv1 = Conv2D(filterShape: (3, 3, inputChannels, outputChannels),
-                       padding: .same,
-                       filterInitializer: heNormal())
-        conv2 = Conv2D(filterShape: (4, 4, outputChannels, outputChannels),
-                       strides: (2, 2),
-                       padding: .same,
-                       filterInitializer: heNormal())
+        conv1 = SNConv2D(filterShape: (3, 3, inputChannels, outputChannels),
+                         padding: .same,
+                         spectralNormalizationEnabled: enableSpectralNormalization,
+                         filterInitializer: heNormal())
+        conv2 = SNConv2D(filterShape: (4, 4, outputChannels, outputChannels),
+                         strides: (2, 2),
+                         padding: .same,
+                         spectralNormalizationEnabled: enableSpectralNormalization,
+                         filterInitializer: heNormal())
         
         learnableSC = inputChannels != outputChannels
-        shortcut = Conv2D(filterShape: (1, 1, learnableSC ? inputChannels : 0, outputChannels),
-                          filterInitializer: heNormal())
+        shortcut = SNConv2D(filterShape: (1, 1, inputChannels, learnableSC ? outputChannels : 0),
+                            spectralNormalizationEnabled: enableSpectralNormalization,
+                            filterInitializer: heNormal())
     }
     
     @differentiable
@@ -47,6 +51,7 @@ struct DBlock: Layer {
 struct Discriminator: Layer {
     struct Config: Codable {
         var encodedSize: Int
+        var enableSpectralNormalization: Bool
         var baseChannels: Int = 8
         var maxChannels: Int = 256
     }
@@ -61,12 +66,12 @@ struct Discriminator: Layer {
     
     var norm: InstanceNorm<Float>
     
-    var meanConv: Conv2D<Float>
-    var logVarConv: Conv2D<Float>
+    var meanConv: SNConv2D<Float>
+    var logVarConv: SNConv2D<Float>
     
-    var tail: Conv2D<Float>
+    var tail: SNConv2D<Float>
     
-    var fromRGB: Conv2D<Float>
+    var fromRGB: SNConv2D<Float>
     
     var avgPool: AvgPool2D<Float> = AvgPool2D(poolSize: (2, 2), strides: (2, 2))
     
@@ -78,6 +83,7 @@ struct Discriminator: Layer {
     
     public init(config: Config, imageSize: ImageSize) {
         self.imageSize = imageSize
+        let enableSN = config.enableSpectralNormalization
         
         func ioChannels(for size: ImageSize) -> (i: Int, o: Int) {
             guard size <= imageSize else {
@@ -89,36 +95,43 @@ struct Discriminator: Layer {
             return (min(i, config.maxChannels), min(o, config.maxChannels))
         }
         
-        fromRGB = Conv2D(filterShape: (1, 1, 3, config.baseChannels),
-                         filterInitializer: heNormal())
+        fromRGB = SNConv2D(filterShape: (1, 1, 3, config.baseChannels),
+                           spectralNormalizationEnabled: enableSN,
+                           filterInitializer: heNormal())
         
         let io256 = ioChannels(for: .x256)
-        x256Block = DBlock(inputChannels: io256.i, outputChannels: io256.o)
+        x256Block = DBlock(inputChannels: io256.i, outputChannels: io256.o,
+                           enableSpectralNormalization: enableSN)
         
         let io128 = ioChannels(for: .x128)
-        x128Block = DBlock(inputChannels: io128.i, outputChannels: io128.o)
+        x128Block = DBlock(inputChannels: io128.i, outputChannels: io128.o,
+                           enableSpectralNormalization: enableSN)
         
         let io64 = ioChannels(for: .x64)
-        x64Block = DBlock(inputChannels: io64.i, outputChannels: io64.o)
+        x64Block = DBlock(inputChannels: io64.i, outputChannels: io64.o,
+                          enableSpectralNormalization: enableSN)
         
         let io32 = ioChannels(for: .x32)
-        x32Block = DBlock(inputChannels: io32.i, outputChannels: io32.o)
+        x32Block = DBlock(inputChannels: io32.i, outputChannels: io32.o,
+                          enableSpectralNormalization: enableSN)
         
         let io16 = ioChannels(for: .x16)
-        x16Block = DBlock(inputChannels: io16.i, outputChannels: io16.o)
+        x16Block = DBlock(inputChannels: io16.i, outputChannels: io16.o,
+                          enableSpectralNormalization: enableSN)
         
         let io8 = ioChannels(for: .x8)
-        x8Block = DBlock(inputChannels: io8.i, outputChannels: io8.o)
+        x8Block = DBlock(inputChannels: io8.i, outputChannels: io8.o,
+                         enableSpectralNormalization: enableSN)
         
-//        let io4 = ioChannels(for: .x4)
-//        x4Block = DBlock(inputChannels: io4.i, outputChannels: io4.o)
-        
-        meanConv = Conv2D(filterShape: (1, 1, io8.o, config.encodedSize),
-                          filterInitializer: heNormal())
-        logVarConv = Conv2D(filterShape: (1, 1, io8.o, config.encodedSize),
+        meanConv = SNConv2D(filterShape: (1, 1, io8.o, config.encodedSize),
+                            spectralNormalizationEnabled: enableSN,
                             filterInitializer: heNormal())
+        logVarConv = SNConv2D(filterShape: (1, 1, io8.o, config.encodedSize),
+                              spectralNormalizationEnabled: enableSN,
+                              filterInitializer: heNormal())
         
-        tail = Conv2D(filterShape: (4, 4, config.encodedSize, 1),
+        tail = SNConv2D(filterShape: (4, 4, config.encodedSize, 1),
+                        spectralNormalizationEnabled: enableSN,
                       filterInitializer: heNormal())
         
         norm = InstanceNorm(featureCount: io8.o)
