@@ -10,15 +10,16 @@ struct GBlock: Layer {
     @noDerivative
     let learnableSC: Bool
     
-    var bn1: BatchNorm<Float>
-    var bn2: BatchNorm<Float>
+    var bn1: Configurable<BatchNorm<Float>>
+    var bn2: Configurable<BatchNorm<Float>>
     
     var resize2x: Resize
     
     init(
         inputChannels: Int,
         outputChannels: Int,
-        resize2x: Resize
+        resize2x: Resize,
+        enableBatchNorm: Bool
     ) {
         conv1 = TransposedConv2D(filterShape: (4, 4, outputChannels, inputChannels),
                                  strides: (2, 2),
@@ -32,8 +33,8 @@ struct GBlock: Layer {
         shortcut = Conv2D(filterShape: (1, 1, inputChannels, learnableSC ? outputChannels : 0),
                           filterInitializer: heNormal())
         
-        bn1 = BatchNorm(featureCount: inputChannels)
-        bn2 = BatchNorm(featureCount: outputChannels)
+        bn1 = Configurable(BatchNorm(featureCount: inputChannels), enabled: enableBatchNorm)
+        bn2 = Configurable(BatchNorm(featureCount: outputChannels), enabled: enableBatchNorm)
         self.resize2x = resize2x
     }
     
@@ -55,6 +56,7 @@ struct Generator: Layer {
     struct Config: Codable {
         var latentSize: Int
         var resizeMethod: Resize.Method
+        var enableBatchNorm: Bool
         var baseChannels: Int = 8
         var maxChannels: Int = 256
     }
@@ -79,6 +81,7 @@ struct Generator: Layer {
         let baseChannels = config.baseChannels
         let maxChannels = config.maxChannels
         let resize = Resize(config.resizeMethod, outputSize: .factor(x: 2, y: 2), alignCorners: true)
+        let enableBN = config.enableBatchNorm
         
         func ioChannels(for size: ImageSize) -> (i: Int, o: Int) {
             guard size <= imageSize else {
@@ -92,25 +95,32 @@ struct Generator: Layer {
         
         let io4 = ioChannels(for: .x4)
         head = Dense(inputSize: config.latentSize, outputSize: io4.i * 2 * 2)
-        x4Block = GBlock(inputChannels: io4.i, outputChannels: io4.o, resize2x: resize)
+        x4Block = GBlock(inputChannels: io4.i, outputChannels: io4.o,
+                         resize2x: resize, enableBatchNorm: enableBN)
         
         let io8 = ioChannels(for: .x8)
-        x8Block = GBlock(inputChannels: io8.i, outputChannels: io8.o, resize2x: resize)
+        x8Block = GBlock(inputChannels: io8.i, outputChannels: io8.o,
+                         resize2x: resize, enableBatchNorm: enableBN)
         
         let io16 = ioChannels(for: .x16)
-        x16Block = GBlock(inputChannels: io16.i, outputChannels: io16.o, resize2x: resize)
+        x16Block = GBlock(inputChannels: io16.i, outputChannels: io16.o,
+                          resize2x: resize, enableBatchNorm: enableBN)
         
         let io32 = ioChannels(for: .x32)
-        x32Block = GBlock(inputChannels: io32.i, outputChannels: io32.o, resize2x: resize)
+        x32Block = GBlock(inputChannels: io32.i, outputChannels: io32.o,
+                          resize2x: resize, enableBatchNorm: enableBN)
         
         let io64 = ioChannels(for: .x64)
-        x64Block = GBlock(inputChannels: io64.i, outputChannels: io64.o, resize2x: resize)
+        x64Block = GBlock(inputChannels: io64.i, outputChannels: io64.o,
+                          resize2x: resize, enableBatchNorm: enableBN)
         
         let io128 = ioChannels(for: .x128)
-        x128Block = GBlock(inputChannels: io128.i, outputChannels: io128.o, resize2x: resize)
+        x128Block = GBlock(inputChannels: io128.i, outputChannels: io128.o,
+                           resize2x: resize, enableBatchNorm: enableBN)
         
         let io256 = ioChannels(for: .x256)
-        x256Block = GBlock(inputChannels: io256.i, outputChannels: io256.o, resize2x: resize)
+        x256Block = GBlock(inputChannels: io256.i, outputChannels: io256.o,
+                           resize2x: resize, enableBatchNorm: enableBN)
         
         toRGB = Conv2D(filterShape: (1, 1, baseChannels, 3),
                        activation: tanh,

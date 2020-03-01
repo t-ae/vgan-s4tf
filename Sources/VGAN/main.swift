@@ -21,7 +21,8 @@ let config = Config(
     imageSize: imageSize,
     G: Generator.Config(
         latentSize: latentSize,
-        resizeMethod: .bilinear
+        resizeMethod: .bilinear,
+        enableBatchNorm: false
     ),
     D: Discriminator.Config(
         encodedSize: 256,
