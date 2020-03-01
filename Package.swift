@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "VGAN",
     dependencies: [
-        .package(url: "https://github.com/t-ae/gan-utils-s4tf.git", from: "0.3.0"),
+        .package(url: "https://github.com/t-ae/gan-utils-s4tf.git", from: "0.3.1"),
         .package(url: "https://github.com/t-ae/image-loader.git", from: "0.1.8"),
         .package(url: "https://github.com/t-ae/tensorboardx-s4tf.git", from: "0.1.1"),
     ],
