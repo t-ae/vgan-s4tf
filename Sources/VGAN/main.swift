@@ -14,7 +14,7 @@ let batchSize = 16
 let config = Config(
     loss: .nonSaturating,
     batchSize: batchSize,
-    learningRates: GDPair(G: 1e-4, D: 1e-4),
+    learningRates: GDPair(G: 1e-4, D: 4e-4),
     alpha: 1e-5,
     Ic: 0.1,
     reparameterizeInGTraining: false,
