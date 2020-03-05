@@ -153,7 +153,7 @@ func trainSingleStep(reals: Tensor<Float>, step: Int) {
     
 }
 
-let truncationFactor: Float = 0.9
+let truncationFactor: Float = 0.7
 let testNoises = (0..<8).map { _ in sampleNoise(size: 64, latentSize: latentSize) * truncationFactor }
 let testGridNoises = (0..<8).map { _ in
     makeGrid(corners: sampleNoise(size: 4, latentSize: latentSize) * truncationFactor,
