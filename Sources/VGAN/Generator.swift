@@ -4,7 +4,7 @@ import GANUtils
 
 struct GBlock: Layer {
     var conv1: TransposedConv2D<Float>
-    var conv2: TransposedConv2D<Float>
+    var conv2: Conv2D<Float>
     var shortcut: Conv2D<Float>
     
     @noDerivative
@@ -25,9 +25,9 @@ struct GBlock: Layer {
                                  strides: (2, 2),
                                  padding: .same,
                                  filterInitializer: heNormal())
-        conv2 = TransposedConv2D(filterShape: (4, 4, outputChannels, outputChannels),
-                                 padding: .same,
-                                 filterInitializer: heNormal())
+        conv2 = Conv2D(filterShape: (4, 4, outputChannels, outputChannels),
+                       padding: .same,
+                       filterInitializer: heNormal())
         
         learnableSC = inputChannels != outputChannels
         shortcut = Conv2D(filterShape: (1, 1, inputChannels, learnableSC ? outputChannels : 0),
