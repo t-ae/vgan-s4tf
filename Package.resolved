@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/t-ae/gan-utils-s4tf.git",
         "state": {
           "branch": null,
-          "revision": "d87ed74f2707b7ecf6ca35b58c3e26e370cd0541",
-          "version": "0.3.1"
+          "revision": "26f0e2c7b442946a8147a5383ee5cd9e1502cafe",
+          "version": "0.3.6"
         }
       },
       {
@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/t-ae/image-loader.git",
         "state": {
           "branch": null,
-          "revision": "3c76ec2ef9d2bf1eef2e8d85dd3d31a586f51b8e",
-          "version": "0.1.8"
+          "revision": "7b34baf51b40ff5da08d3adadce522814ea62b5e",
+          "version": "0.1.9"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/t-ae/tensorboardx-s4tf.git",
         "state": {
           "branch": null,
-          "revision": "4b8b537f2b5b0674802ee814bfc16a9425a87f8e",
-          "version": "0.1.1"
+          "revision": "c75601019c50213660f3bfd84d3efce276701647",
+          "version": "0.1.2"
         }
       }
     ]
