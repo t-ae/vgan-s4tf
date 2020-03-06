@@ -21,11 +21,11 @@ struct GBlock: Layer {
         resize2x: Resize,
         enableBatchNorm: Bool
     ) {
-        conv1 = TransposedConv2D(filterShape: (3, 3, outputChannels, inputChannels),
+        conv1 = TransposedConv2D(filterShape: (4, 4, outputChannels, inputChannels),
                                  strides: (2, 2),
                                  padding: .same,
                                  filterInitializer: heNormal())
-        conv2 = TransposedConv2D(filterShape: (3, 3, outputChannels, outputChannels),
+        conv2 = TransposedConv2D(filterShape: (4, 4, outputChannels, outputChannels),
                                  padding: .same,
                                  filterInitializer: heNormal())
         
