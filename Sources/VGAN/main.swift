@@ -21,7 +21,7 @@ let config = Config(
     imageSize: imageSize,
     G: Generator.Config(
         latentSize: latentSize,
-        resizeMethod: .bilinear,
+        resizeMethod: .nearestNeighbor,
         enableBatchNorm: false
     ),
     D: Discriminator.Config(
