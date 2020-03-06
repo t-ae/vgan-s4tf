@@ -3,7 +3,7 @@ import TensorFlow
 import GANUtils
 
 struct GBlock: Layer {
-    var conv1: TransposedConv2D<Float>
+    var conv1: Conv2D<Float>
     var conv2: Conv2D<Float>
     var shortcut: Conv2D<Float>
     
@@ -13,6 +13,7 @@ struct GBlock: Layer {
     var bn1: Configurable<BatchNorm<Float>>
     var bn2: Configurable<BatchNorm<Float>>
     
+    var upsample = UpSampling2D<Float>(size: 2)
     var resize2x: Resize
     
     init(
@@ -21,11 +22,10 @@ struct GBlock: Layer {
         resize2x: Resize,
         enableBatchNorm: Bool
     ) {
-        conv1 = TransposedConv2D(filterShape: (4, 4, outputChannels, inputChannels),
-                                 strides: (2, 2),
-                                 padding: .same,
-                                 filterInitializer: heNormal())
-        conv2 = Conv2D(filterShape: (4, 4, outputChannels, outputChannels),
+        conv1 = Conv2D(filterShape: (3, 3, outputChannels, inputChannels),
+                       padding: .same,
+                       filterInitializer: heNormal())
+        conv2 = Conv2D(filterShape: (3, 3, outputChannels, outputChannels),
                        padding: .same,
                        filterInitializer: heNormal())
         
@@ -42,6 +42,7 @@ struct GBlock: Layer {
     @differentiable
     func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
+        x = upsample(x)
         x = conv1(leakyRelu(bn1(x)))
         x = conv2(leakyRelu(bn2(x)))
         
