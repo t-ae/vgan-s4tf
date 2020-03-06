@@ -29,6 +29,7 @@ struct DBlock: Layer {
         
         learnableSC = inputChannels != outputChannels
         shortcut = SNConv2D(filterShape: (1, 1, inputChannels, learnableSC ? outputChannels : 0),
+                            useBias: false,
                             spectralNormalizationEnabled: enableSpectralNormalization,
                             filterInitializer: heNormal())
     }

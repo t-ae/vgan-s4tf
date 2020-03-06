@@ -31,6 +31,7 @@ struct GBlock: Layer {
         
         learnableSC = inputChannels != outputChannels
         shortcut = Conv2D(filterShape: (1, 1, inputChannels, learnableSC ? outputChannels : 0),
+                          useBias: false,
                           filterInitializer: heNormal())
         
         bn1 = Configurable(BatchNorm(featureCount: inputChannels), enabled: enableBatchNorm)
