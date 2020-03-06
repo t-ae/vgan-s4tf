@@ -64,7 +64,6 @@ struct Generator: Layer {
     }
     
     var head: Dense<Float>
-    var x4Block: GBlock
     var x8Block: GBlock
     var x16Block: GBlock
     var x32Block: GBlock
@@ -95,12 +94,8 @@ struct Generator: Layer {
             return (min(i, maxChannels), min(o, maxChannels))
         }
         
-        let io4 = ioChannels(for: .x4)
-        head = Dense(inputSize: config.latentSize, outputSize: io4.i * 2 * 2)
-        x4Block = GBlock(inputChannels: io4.i, outputChannels: io4.o,
-                         resize2x: resize, enableBatchNorm: enableBN)
-        
         let io8 = ioChannels(for: .x8)
+        head = Dense(inputSize: config.latentSize, outputSize: io8.i * 4 * 4)
         x8Block = GBlock(inputChannels: io8.i, outputChannels: io8.o,
                          resize2x: resize, enableBatchNorm: enableBN)
         
@@ -133,9 +128,8 @@ struct Generator: Layer {
     func callAsFunction(_ input: Tensor<Float>) -> Tensor<Float> {
         var x = input
         
-        x = head(x).reshaped(to: [input.shape[0], 2, 2, -1]) // 2x2
+        x = head(x).reshaped(to: [input.shape[0], 4, 4, -1])
         
-        x = x4Block(x)
         if imageSize == .x4 {
             return toRGB(leakyRelu(x))
         }
