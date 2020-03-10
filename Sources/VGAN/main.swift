@@ -22,7 +22,7 @@ let config = Config(
     G: Generator.Config(
         latentSize: latentSize,
         resizeMethod: .bilinear,
-        enableBatchNorm: false
+        enableBatchNorm: true
     ),
     D: Discriminator.Config(
         encodedSize: 256,
