@@ -31,6 +31,7 @@ let config = Config(
 )
 
 var generator = Generator(config: config.G, imageSize: imageSize)
+let avgG = ModelAveraging(average: generator, beta: 0.99)
 var discriminator = Discriminator(config: config.D, imageSize: imageSize)
 
 let optG = RMSProp(for: generator, learningRate: config.learningRates.D, rho: 0.99)
@@ -151,6 +152,7 @@ func trainSingleStep(reals: Tensor<Float>, step: Int) {
     }
     optG.update(&generator, along: 𝛁generator)
     
+    avgG.update(model: generator)
 }
 
 let truncationFactor: Float = 0.7
@@ -162,6 +164,8 @@ let testGridNoises = (0..<8).map { _ in
 
 func infer(step: Int) {
     print("infer...")
+    
+    let generator = avgG.average
     
     for (i, noise) in testNoises.enumerated() {
         let reals = generator.inferring(from: noise, batchSize: batchSize)
