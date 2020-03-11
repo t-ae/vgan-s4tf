@@ -9,7 +9,7 @@ let package = Package(
         .macOS(.v10_13),
     ],
     dependencies: [
-        .package(name: "GANUtils", url: "https://github.com/t-ae/gan-utils-s4tf.git", from: "0.3.6"),
+        .package(name: "GANUtils", url: "https://github.com/t-ae/gan-utils-s4tf.git", from: "0.3.7"),
         .package(name: "ImageLoader", url: "https://github.com/t-ae/image-loader.git", from: "0.1.9"),
         .package(name: "TensorBoardX", url: "https://github.com/t-ae/tensorboardx-s4tf.git", from: "0.1.2"),
     ],
